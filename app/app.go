@@ -73,20 +73,24 @@ func (a *App) isAuthorized(endpoint func(http.ResponseWriter, *http.Request)) ht
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if request has "Token" header.
 		if r.Header["Token"] != nil {
-			token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
-				// Check if token is valid based on private `mySigningKey`.
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					app.RespondWithError(w, http.StatusInternalServerError, "There was error with signing the token.")
-				}
-				return mySigningKey, nil
-			})
+			if len(r.Header["Token"][0]) < 1 {
+				app.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			} else {
+				token, err := jwt.Parse(r.Header["Token"][0], func(token *jwt.Token) (interface{}, error) {
+					// Check if token is valid based on private `mySigningKey`.
+					if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+						app.RespondWithError(w, http.StatusInternalServerError, "There was error with signing the token.")
+					}
+					return mySigningKey, nil
+				})
 
-			if err != nil {
-				app.RespondWithError(w, http.StatusInternalServerError, err.Error())
-			}
-			// Serve endpoint if token is valid.
-			if token.Valid {
-				endpoint(w, r)
+				if err != nil {
+					app.RespondWithError(w, http.StatusInternalServerError, err.Error())
+				}
+				// Serve endpoint if token is valid.
+				if token.Valid {
+					endpoint(w, r)
+				}
 			}
 		} else {
 			app.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
